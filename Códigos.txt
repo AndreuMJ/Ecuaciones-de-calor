@@ -1,0 +1,211 @@
+//DescomposiciónLUPM
+
+function [L,U,P,Q] = descompLUPM(A)
+[filas,columnas]= size(A);
+L=zeros(filas);
+P=eye(filas);
+U=A;
+Q=eye(filas);
+detU=det(U);
+  if (detU != 0)
+    for k=1:columnas;
+      mayor=0;
+      filamayor=k;
+      columnamayor=k;
+      for  p= k: columnas;
+        for r= k:columnas;
+          if (mayor< (abs(U(p,r))));
+            mayor = abs(U(p,r));
+            filamayor=p;
+            columnamayor=r;
+          endif
+        endfor
+      endfor
+        for j=1:filas;
+          aux=U(k,j);
+          U(k,j)=U(filamayor,j);
+          U(filamayor,j)=aux;
+          aux2=P(k,j);
+          P(k,j)=P(filamayor,j);
+          P(filamayor,j)=aux2;
+          aux3=L(k,j);
+          L(k,j)=L(filamayor,j);
+          L(filamayor,j)=aux3;
+        endfor
+        for i=1:columnas;
+          aux=U(i,k);
+          U(i,k)=U(i,columnamayor);
+          U(i,columnamayor)=aux;
+          aux2=Q(i,k);
+          Q(i,k)=Q(i,columnamayor);
+          Q(i,columnamayor)=aux2;
+          aux3=L(i,k);
+          L(i,k)=L(i,columnamayor);
+          L(i,columnamayor)=aux3;
+        endfor
+        for i= k+1:filas
+          L(i,k)=U(i,k)/U(k,k);
+          U(i,:)=U(i,:)-U(k,:)*L(i,k);
+        endfor
+    endfor
+    L = L+eye(size(L));
+  endif
+endfunction
+
+//Función f
+
+function [f] = f(x)
+  f = x*(x-1);
+endfunction
+
+//Función l
+
+function [l] = l(t)
+  l = t;
+endfunction
+
+//Función r
+
+function [r] = r(t)
+  r = t;
+endfunction
+
+//Triangular inferior
+
+function x = lower_triangular_solver(C,b)
+%declaracion de la variable length
+[n n]= size(C);
+C=[C b];
+%declaracion de un variable de tipo matriz llamada zeros
+x= zeros(n,1);
+  %SUSTITUCION HACIA DELANTE
+ disp('SOLUCION DE LA MATRIZ') 
+x(1)=C(1,n+1)/C(1,1);
+  for i= 2:n
+    s=0;
+    for j=1:n-1
+      s=s+C(i,j)*x(j);
+    endfor
+    x(i)= (C(i,n+1)-s)/C(i,i);
+  endfor
+endfunction
+
+//Triangular superior
+
+function X0 = upper_triangular_solver(A,b)
+ n=length(b);
+ X0 = zeros(n, 1);
+ X0(n, 1)=b(n)/A(n,n);
+ for i=n-1:-1:1
+    S=b(i);
+    for j=i+1:n
+       S=S-A(i,j)*X0(j);
+    endfor
+    X0(i, 1)=S/A(i,i); 
+ endfor
+endfunction
+
+//Main
+
+%%%%%%%% PARÁMETROS DEL PROBLEMA %%%%%%%%
+
+% Extremo de x
+L = 1;
+
+% Extremo de t
+T = 10;
+
+% Parámetros de malla
+I = 25;
+J = 50;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+[x_grid, t_grid, U, M] = solve_heat_equation(L, T, I, J);
+plot_solution(t_grid, x_grid, U)
+
+//Plot solución
+
+function plot_solution(x_grid, t_grid, U)
+  ## Genera el grafico de una función de dos dimensiones. Para cada punto (x_i, t_i)
+  ## del dominio, la matriz U en la posición i y j contiene el valor de U(x_i, t_j).
+  ##
+  ## Argumentos:
+  ##    - x_grid: Un vector, representando la partición efectuada en el eje X.
+  ##    - t_grid: Un vector, representando la partición efectuada en el eje Y.
+  ##    - U: Una matriz, representando los valores de la función discretizada.
+  [xx, yy] = meshgrid(x_grid, t_grid);
+  mesh(xx, yy, U)
+endfunction
+
+//Solve heat equation
+
+function [x_grid, t_grid, U, M] = solve_heat_equation(L, T, I, J)
+  ## Resuelve la ecuacion de calor en derivadas parciales usando la discretizacion
+  ## del dominio y las diferencias finitas. Para cada punto (x_i, t_i) del
+  ## dominio, se genera el elemento de la matriz U en la posicion i y j , que
+  ## contiene el valor de U(x_i, t_j).
+  ##
+  ## Input:
+  ##    - L: Longitud del intervalo de definicion de la variable espacial.
+  ##    - T: Longitud del intervalo de definición de la variable temporal.
+  ##    - I: Numero de particiones que se realizan sobre el intervalo [0, L].
+  ##    - J: Numero de particiones que se realizan sobre el intervalo [0, T].
+  ##
+  ## Output:
+  ##    - x_grid: Un vector, representando la particion efectuada en el eje X.
+  ##    - t_grid: Un vector, representando la particion efectuada en el eje Y.
+  ##    - U: Una matriz, representando los valores de la funcion discretizada.
+
+  %%%%%%%%%%%%%%%%%% Parametros iniciales %%%%%%%%%%%%%%%%%%%%
+  x_grid = linspace(0, L, I+1);
+  t_grid = linspace(0, T, J+1);
+  U = zeros(I+1, J+1);
+
+  h = L/I;
+  k = T/J;
+  alpha = k/h^2;
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  %%%%%%%%%%% Inicializacion de la matriz del sistema %%%%%%%%
+  B = zeros(I-1, I-1);
+
+  for k=1:I-1
+    % Diagonal principal
+    B(k,k)= 1+2*alpha;
+  endfor
+  for k=2:I-1
+    % Subdiagonal superior
+    B(k-1,k) = -alpha;
+  endfor
+  for k=1:I-2
+    % Subdiagonal inferior
+    B(k+1,k) = -alpha;
+  endfor
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  [L,U1,P,Q] = descompLUPM(B);
+  %%%%%%%%%%%%%%%%% Condiciones de frontera %%%%%%%%%%%%%%%%%%
+  for i = 1:I+1
+    U(i, 1) = f(x_grid(i));
+  endfor
+
+  for j = 1:J+1
+    U(1, j) = l(t_grid(j));
+    U(I+1, j) = r(t_grid(j));
+  endfor
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  %%%%%% Resolucion iterativa del sistema de ecuaciones %%%%%%
+  for k = 2:J+1
+    independent_term = U(2:I, k-1);
+    independent_term(1) = independent_term(1)+alpha*l(t_grid(k));
+    independent_term(I-1) = independent_term(I-1)+alpha*r(t_grid(k));
+
+    y = lower_triangular_solver(L,P*independent_term);
+    z = upper_triangular_solver(U1,y);
+    x = Q*z;
+    U(2:I, k) = x;
+  endfor
+  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  M=U';
+endfunction
